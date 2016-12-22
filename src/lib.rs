@@ -4,8 +4,11 @@
 extern crate log;
 
 pub mod sqlsyntax;
-pub mod tempengine;
+pub mod connection;
 
+pub use sqlengine::{ExecuteStatementResponse, ExecuteStatementResult};
+
+mod tempengine;
 mod byteutils;
 mod columnvalueops;
 mod databaseinfo;
