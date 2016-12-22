@@ -11,6 +11,7 @@ use databaseinfo::{DatabaseInfo, TableInfo, ColumnInfo};
 use databasestorage::{Group, DatabaseStorage};
 use identifier::Identifier;
 use types::{DbType, Variant};
+use sqlengine::{ExecuteStatementResponse, ExecuteStatementResult, SqlEngine};
 use sqlsyntax::ast;
 use queryplan::{self, ExecuteQueryPlan, QueryPlan};
 
@@ -20,18 +21,6 @@ use self::table::Table;
 pub struct TempDb {
     tables: Vec<Table>
 }
-
-pub enum ExecuteStatementResponse<'a> {
-    Created,
-    Inserted(u64),
-    Select {
-        column_names: Box<[String]>,
-        rows: Box<Iterator<Item=Box<[Variant]>> + 'a>
-    },
-    Explain(String)
-}
-
-pub type ExecuteStatementResult<'a> = Result<ExecuteStatementResponse<'a>, String>;
 
 impl DatabaseInfo for TempDb {
     type Table = Table;
@@ -131,14 +120,14 @@ impl DatabaseStorage for TempDb {
     }
 }
 
-impl TempDb {
-    pub fn new() -> TempDb {
+impl SqlEngine for TempDb {
+    fn new() -> TempDb {
         TempDb {
             tables: Vec::new()
         }
     }
 
-    pub fn execute_statement(&mut self, stmt: ast::Statement) -> ExecuteStatementResult {
+    fn execute_statement(&mut self, stmt: ast::Statement) -> ExecuteStatementResult {
         match stmt {
             ast::Statement::Create(create_stmt) => {
                 match create_stmt {
@@ -258,7 +247,7 @@ impl TempDb {
                                 };
                                 let value = try!(execute.execute_expression(&sexpr));
 
-                                let is_null = try!(variant_to_data(value, dbtype, nullable, &mut buf));
+                                let is_null = try!(self.variant_to_data(value, dbtype, nullable, &mut buf));
                                 Ok((buf.into_boxed_slice(), is_null))
                             },
                             None => {
@@ -311,7 +300,9 @@ impl TempDb {
             }
         }
     }
+}
 
+impl TempDb {
     fn add_table(&mut self, table: Table) -> Result<(), String> {
         if self.tables.iter().any(|t| t.name == table.name) {
             Err(format!("Table {} already exists", table.name))
@@ -335,20 +326,21 @@ impl TempDb {
     fn parse_number_as_u64(&self, number: String) -> Result<u64, String> {
         number.parse().map_err(|_| format!("{} is not a valid number", number))
     }
-}
 
-fn variant_to_data(value: Variant, column_type: DbType, nullable: bool, buf: &mut Vec<u8>)
--> Result<Option<bool>, String> {
-    match (value.is_null(), nullable) {
-        (true, true) => Ok(Some(true)),
-        (true, false) => {
-            Err(format!("cannot insert NULL into column that doesn't allow NULL"))
-        },
-        (false, nullable) => {
-            let bytes = value.to_bytes(column_type).unwrap();
-            buf.extend_from_slice(&bytes);
+    fn variant_to_data(&self, value: Variant, column_type: DbType, nullable: bool, buf: &mut Vec<u8>)
+    -> Result<Option<bool>, String> {
+        match (value.is_null(), nullable) {
+            (true, true) => Ok(Some(true)),
+            (true, false) => {
+                Err(format!("cannot insert NULL into column that doesn't allow NULL"))
+            },
+            (false, nullable) => {
+                let bytes = value.to_bytes(column_type).unwrap();
+                buf.extend_from_slice(&bytes);
 
-            Ok(if nullable { Some(false) } else { None })
+                Ok(if nullable { Some(false) } else { None })
+            }
         }
     }
 }
+

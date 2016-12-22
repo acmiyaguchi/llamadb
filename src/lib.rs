@@ -12,4 +12,5 @@ mod databaseinfo;
 mod databasestorage;
 mod identifier;
 mod queryplan;
+mod sqlengine;
 mod types;
