@@ -18,11 +18,11 @@ use queryplan::{self, ExecuteQueryPlan, QueryPlan};
 mod table;
 use self::table::Table;
 
-pub struct TempDb {
+pub struct TempEngine {
     tables: Vec<Table>
 }
 
-impl DatabaseInfo for TempDb {
+impl DatabaseInfo for TempEngine {
     type Table = Table;
     type ColumnValue = Variant;
 
@@ -108,8 +108,8 @@ impl<'a> Group for ScanGroup<'a> {
     }
 }
 
-impl DatabaseStorage for TempDb {
-    type Info = TempDb;
+impl DatabaseStorage for TempEngine {
+    type Info = TempEngine;
 
     fn scan_table<'a>(&'a self, table: &'a Table)
     -> Box<Group<ColumnValue=Variant> + 'a>
@@ -120,9 +120,9 @@ impl DatabaseStorage for TempDb {
     }
 }
 
-impl SqlEngine for TempDb {
-    fn new() -> TempDb {
-        TempDb {
+impl SqlEngine for TempEngine {
+    fn new() -> TempEngine {
+        TempEngine {
             tables: Vec::new()
         }
     }
@@ -302,7 +302,7 @@ impl SqlEngine for TempDb {
     }
 }
 
-impl TempDb {
+impl TempEngine {
     fn add_table(&mut self, table: Table) -> Result<(), String> {
         if self.tables.iter().any(|t| t.name == table.name) {
             Err(format!("Table {} already exists", table.name))

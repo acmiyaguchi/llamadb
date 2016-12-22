@@ -4,7 +4,7 @@
 extern crate log;
 
 pub mod sqlsyntax;
-pub mod tempdb;
+pub mod tempengine;
 
 mod byteutils;
 mod columnvalueops;
